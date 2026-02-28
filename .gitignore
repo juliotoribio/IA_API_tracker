@@ -1,0 +1,4 @@
+node_modules/
+.minimax_browser_data/
+billing-data.json
+.env
