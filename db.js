@@ -310,6 +310,14 @@ function recordSnapshot(providerId, { remaining, used, topped_up, currency = 'US
       VALUES (?, ?, ?)
       ON CONFLICT(provider_id, date) DO UPDATE SET spend_amount = spend_amount + ?
     `).run(providerId, dateStr, delta, delta);
+
+    const prov = db.prepare('SELECT type FROM providers WHERE id = ?').get(providerId);
+    const modelName = prov?.type === 'deepseek' ? 'deepseek-chat' : (prov?.type ? prov.type + '-model' : 'default');
+    db.prepare(`
+      INSERT INTO model_usage (provider_id, model_name, date, cost_usd)
+      VALUES (?, ?, ?, ?)
+      ON CONFLICT(provider_id, model_name, date) DO UPDATE SET cost_usd = cost_usd + ?
+    `).run(providerId, modelName, dateStr, delta, delta);
   }
 }
 
