@@ -204,6 +204,15 @@ function getAllProviders() {
     ) s ON p.id = s.provider_id AND s.rn = 1
     ORDER BY p.name ASC
   `).all();
+  const todayRows = db.prepare("SELECT provider_id, spend_amount FROM daily_usage WHERE date = date('now')").all();
+  const todayMap = Object.fromEntries(todayRows.map(r => [r.provider_id, r.spend_amount]));
+
+  const historyRows = db.prepare("SELECT provider_id, date, spend_amount FROM daily_usage ORDER BY date ASC").all();
+  const historyMap = {};
+  for (const r of historyRows) {
+    if (!historyMap[r.provider_id]) historyMap[r.provider_id] = [];
+    historyMap[r.provider_id].push({ date: r.date, amount: r.spend_amount });
+  }
 
   return rows.map(r => ({
     id: r.id,
@@ -214,6 +223,8 @@ function getAllProviders() {
     color: r.color,
     manualRecharged: r.manual_recharged,
     lastFetch: r.last_fetch,
+    todaySpend: todayMap[r.id] || 0,
+    dailyHistory: historyMap[r.id] || [],
     billing: {
       remaining: r.remaining !== null ? r.remaining : r.manual_recharged,
       used: r.used !== null ? r.used : 0,

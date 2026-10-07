@@ -1119,6 +1119,10 @@
       <span class="metric-value" id="totRemaining">$0.00</span>
     </div>
     <div class="metric-item">
+      <span class="metric-label" style="color:#f59e0b;">Gasto de Hoy</span>
+      <span class="metric-value" style="color:#f59e0b;" id="totToday">$0.00</span>
+    </div>
+    <div class="metric-item">
       <span class="metric-label">Consumo Total</span>
       <span class="metric-value subtle" id="totUsed">$0.00</span>
     </div>
@@ -1166,8 +1170,8 @@
             <span id="heroStatBalance">$0.00</span>
           </div>
           <div class="hero-stat-col">
-            <span>Gasto/día</span>
-            <span id="heroStatBurn">$0.00</span>
+            <span style="color:#f59e0b;">Gasto Hoy</span>
+            <span id="heroStatToday" style="color:#f59e0b; font-weight:600;">$0.00</span>
           </div>
           <div class="hero-stat-col">
             <span>Recargado</span>
@@ -1214,6 +1218,7 @@
           <tr>
             <th>Proveedor</th>
             <th style="text-align:right">Saldo Restante</th>
+            <th style="text-align:right">Gasto Hoy</th>
             <th style="text-align:right">Consumo / Recarga</th>
             <th style="min-width:180px">% Disponible</th>
             <th style="width:130px">Tendencia (30d)</th>
@@ -1456,6 +1461,7 @@
     const recharged = parseFloat(p.billing?.topped_up ?? p.manualRecharged ?? 0);
     const used = parseFloat(p.billing?.used ?? 0);
     const remaining = parseFloat(p.billing?.remaining ?? (recharged - used));
+    const todaySpend = parseFloat(p.todaySpend || 0);
     const noData = p.type === 'anthropic' && !p.billing?.remaining && !p.manualRecharged;
 
     // Generate consistent 42-day daily usage history
@@ -1473,8 +1479,11 @@
 
     const sumDaily = daily.reduce((a, b) => a + b, 0) || 1;
     // Scale daily distribution to approximate recent actual usage or sensible burn
-    const targetUsage = used > 0 ? used : 0.001;
+    const targetUsage = Math.max(used - todaySpend, 0.001);
     const normalizedDaily = daily.map(v => (v / sumDaily) * targetUsage);
+    if (normalizedDaily.length > 0) {
+      normalizedDaily[normalizedDaily.length - 1] = todaySpend;
+    }
 
     // Scenario multiplier (Normal = 1x, Heavy = 4x)
     const mult = currentScenario === 'heavy' ? 4 : 1;
@@ -1539,6 +1548,7 @@
       recharged,
       used,
       remaining,
+      todaySpend,
       percentRemaining,
       noData,
       daily: normalizedDaily,
@@ -1576,11 +1586,13 @@
 
     // 1. Metrics Totals
     const totRem = processed.reduce((a, b) => a + b.remaining, 0);
+    const totToday = processed.reduce((a, b) => a + (b.todaySpend || 0), 0);
     const totUsd = processed.reduce((a, b) => a + b.used, 0);
     const totRec = processed.reduce((a, b) => a + b.recharged, 0);
     const totBrn = processed.reduce((a, b) => a + b.burn, 0);
 
     document.getElementById('totRemaining').textContent = formatMoney(totRem);
+    document.getElementById('totToday').textContent = formatMoney(totToday);
     document.getElementById('totUsed').textContent = formatMoney(totUsd);
     document.getElementById('totRecharged').textContent = formatMoney(totRec);
     document.getElementById('totBurn').textContent = formatMoney(totBrn) + '/día';
@@ -1591,7 +1603,7 @@
     if (activeList.length > 0) {
       const totalPct = totRec > 0 ? ((totRem / totRec) * 100).toFixed(1) : '100.0';
       heroHeadline.innerHTML = `<span style="color:#fff;">${formatMoney(totRem)} USD disponibles</span> <span style="font-size:18px; color:var(--text-dim); font-weight:400;">(${totalPct}% restante de ${formatMoney(totRec)})</span>`;
-      heroSubhead.innerHTML = `Menor margen disponible: <strong>${hero.name}</strong> con <strong>${hero.remainingLabel}</strong> (${hero.percentRemaining}% restante) · <span style="color:var(--text-dim); font-size:13px;">Estimación de autonomía: ~${hero.daysShort} (~${hero.burnLabel})</span>`;
+      heroSubhead.innerHTML = `Gasto de hoy: <strong style="color:#f59e0b;">+${formatMoney(totToday)}</strong> · Menor margen: <strong>${hero.name}</strong> con <strong>${hero.remainingLabel}</strong> (${hero.percentRemaining}% restante) · <span style="color:var(--text-dim); font-size:13px;">Estimación de autonomía: ~${hero.daysShort} (~${hero.burnLabel})</span>`;
     } else {
       heroHeadline.textContent = 'No hay proveedores activos configurados';
       heroSubhead.textContent = 'Añade una clave de API o saldo manual para comenzar el rastreo.';
@@ -1607,7 +1619,7 @@
     document.getElementById('heroDot').style.background = hero.color || '#3b82f6';
     document.getElementById('heroCardName').textContent = hero.name;
     document.getElementById('heroStatBalance').textContent = hero.remainingLabel;
-    document.getElementById('heroStatBurn').textContent = formatMoney(hero.used);
+    document.getElementById('heroStatToday').textContent = hero.todaySpend > 0 ? `+${formatMoney(hero.todaySpend)}` : '$0.00';
     document.getElementById('heroStatRecharged').textContent = hero.rechargedLabel;
 
     // 4. Secondary Mini Rings (Focused on Balance Remaining)
@@ -1626,7 +1638,7 @@
             <span style="width:6px; height:6px; border-radius:2px; background:${p.color};"></span>
             <span class="mini-ring-name">${p.name}</span>
           </div>
-          <span class="mini-ring-balance">${p.remainingLabel} <span style="font-size:11px; color:var(--text-dim); font-weight:400;">/ ${p.rechargedLabel}</span></span>
+          <span class="mini-ring-balance">${p.remainingLabel} <span style="font-size:11px; color:${p.todaySpend > 0 ? '#f59e0b' : 'var(--text-dim)'}; font-weight:500;">(${p.todaySpend > 0 ? 'hoy +' + formatMoney(p.todaySpend) : '/ ' + p.rechargedLabel})</span></span>
           <span class="mini-ring-burn" style="font-size:10px; color:var(--text-dim);">est. ~${p.daysShort}</span>
         </div>
       </div>
@@ -1668,6 +1680,9 @@
           </div>
         </td>
         <td style="text-align:right" class="balance-cell">${p.remainingLabel}</td>
+        <td style="text-align:right; font-family:var(--font-mono); font-size:13px; font-weight:600; color:${p.todaySpend > 0 ? '#f59e0b' : 'var(--text-dim)'};">
+          ${p.todaySpend > 0 ? '+' : ''}${formatMoney(p.todaySpend)}
+        </td>
         <td style="text-align:right; font-family:var(--font-mono); font-size:12px; color:var(--text-muted);">
           ${formatMoney(p.used)} <span style="color:var(--text-dim);">/ ${p.rechargedLabel}</span>
         </td>
@@ -1803,7 +1818,7 @@
         <div class="heatmap-row ${isSelected ? 'active' : ''}" onclick="selectProvider('${p.id}')">
           <span class="heatmap-name" style="color:${p.color}">${p.name}</span>
           <div class="heatmap-cells-grid">${cells}</div>
-          <span class="heatmap-total">${formatMoney(p.used)}</span>
+          <span class="heatmap-total">${formatMoney(p.used)} <span style="font-size:11px; color:${p.todaySpend > 0 ? '#f59e0b' : 'var(--text-dim)'}; font-weight:500;">(${p.todaySpend > 0 ? 'hoy +' + formatMoney(p.todaySpend) : '$0.00 hoy'})</span></span>
         </div>
       `;
     }).join('');

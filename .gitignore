@@ -1,4 +1,8 @@
 node_modules/
 .minimax_browser_data/
 billing-data.json
+tracker.db*
 .env
+.DS_Store
+*.zip
+support.js
