@@ -3,6 +3,7 @@ const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
 const minimaxScraper = require('./minimax-vision-scraper'); // Import our new scraper
+const db = require('./db'); // SQLite database layer
 
 const PORT = 8099; // Changed port to avoid any conflicts
 
@@ -82,58 +83,43 @@ function saveData(data) {
 }
 
 app.get('/api/providers', (req, res) => {
-  const data = loadData();
-  res.json(data.providers);
+  const providers = db.getAllProviders();
+  res.json(providers);
 });
 
 app.post('/api/providers', (req, res) => {
   const { type, apiKey, name, color, manualRecharged, groupId } = req.body;
-  const data = loadData();
-  
-  const existingIndex = data.providers.findIndex(p => p.type === type);
-  const provider = { 
-    type, 
-    apiKey, 
-    groupId,
-    name, 
-    color, 
-    manualRecharged: parseFloat(manualRecharged) || 0,
-    billing: {} 
-  };
-  
-  if (existingIndex >= 0) {
-    // Preserve old billing data to prevent flash before next fetch
-    provider.billing = data.providers[existingIndex].billing;
-    data.providers[existingIndex] = provider;
-  } else {
-    data.providers.push(provider);
-  }
-  
-  saveData(data);
-  res.json({ success: true });
+  const id = db.upsertProvider({ type, apiKey, name, color, manualRecharged, groupId });
+  res.json({ success: true, id });
 });
 
 app.delete('/api/providers/:type', (req, res) => {
   const { type } = req.params;
-  const data = loadData();
-  data.providers = data.providers.filter(p => p.type !== type);
-  saveData(data);
+  db.deleteProvider(type);
   res.json({ success: true });
 });
 
 app.post('/api/providers/:type/manual_override', (req, res) => {
   const { type } = req.params;
   const { remaining, topped_up, used } = req.body;
-  const data = loadData();
-  const provider = data.providers.find(p => p.type === type);
-  
-  if (provider) {
-    provider.billing = { remaining, topped_up, used, currency: 'USD' };
-    provider.lastFetch = new Date().toISOString();
-    saveData(data);
+  const prov = db.getProviderByType(type);
+  if (prov) {
+    db.recordSnapshot(prov.id, { remaining, topped_up, used });
   }
-  
   res.json({ success: true });
+});
+
+app.get('/api/history/:type', (req, res) => {
+  const prov = db.getProviderByType(req.params.type);
+  if (!prov) return res.json([]);
+  const days = parseInt(req.query.days) || 30;
+  res.json(db.getDailyUsage(prov.id, days));
+});
+
+app.get('/api/models/:type', (req, res) => {
+  const prov = db.getProviderByType(req.params.type);
+  if (!prov) return res.json([]);
+  res.json(db.getModelUsage(prov.id));
 });
 
 app.get('/api/billing/:type', async (req, res) => {
@@ -249,11 +235,15 @@ app.get('/api/billing/:type', async (req, res) => {
   }
 });
 
+app.get('/api/fetch-all', (req, res) => {
+  res.redirect('/api/billing');
+});
+
 app.get('/api/billing', async (req, res) => {
-  const data = loadData();
+  const providers = db.getAllProviders();
   const results = [];
   
-  for (const provider of data.providers) {
+  for (const provider of providers) {
     if (!provider.apiKey) continue;
     
     const config = PROVIDER_ENDPOINTS[provider.type];
@@ -329,6 +319,7 @@ app.get('/api/billing', async (req, res) => {
       
       provider.billing = billing;
       provider.lastFetch = new Date().toISOString();
+      db.recordSnapshot(provider.id, billing);
       results.push({ type: provider.type, billing });
     } catch (error) {
       let message = error.message;
@@ -348,7 +339,6 @@ app.get('/api/billing', async (req, res) => {
     }
   }
   
-  saveData(data);
   res.json(results);
 });
 
