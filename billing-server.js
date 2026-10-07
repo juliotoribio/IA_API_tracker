@@ -352,6 +352,8 @@ app.get('/api/billing', async (req, res) => {
   res.json(results);
 });
 
+app.use(express.static(__dirname));
+
 app.get('/', (req, res) => {
   try {
     const htmlPath = path.join(__dirname, 'api-billing-tracker.html');
