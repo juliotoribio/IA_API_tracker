@@ -1574,7 +1574,18 @@
       selectedProviderId = hero.id;
     }
 
-    // 1. Top Headlines
+    // 1. Metrics Totals
+    const totRem = processed.reduce((a, b) => a + b.remaining, 0);
+    const totUsd = processed.reduce((a, b) => a + b.used, 0);
+    const totRec = processed.reduce((a, b) => a + b.recharged, 0);
+    const totBrn = processed.reduce((a, b) => a + b.burn, 0);
+
+    document.getElementById('totRemaining').textContent = formatMoney(totRem);
+    document.getElementById('totUsed').textContent = formatMoney(totUsd);
+    document.getElementById('totRecharged').textContent = formatMoney(totRec);
+    document.getElementById('totBurn').textContent = formatMoney(totBrn) + '/día';
+
+    // 2. Top Headlines
     const heroHeadline = document.getElementById('heroHeadline');
     const heroSubhead = document.getElementById('heroSubhead');
     if (activeList.length > 0) {
@@ -1585,17 +1596,6 @@
       heroHeadline.textContent = 'No hay proveedores activos configurados';
       heroSubhead.textContent = 'Añade una clave de API o saldo manual para comenzar el rastreo.';
     }
-
-    // 2. Metrics Ribbon
-    const totRem = processed.reduce((a, b) => a + b.remaining, 0);
-    const totUsd = processed.reduce((a, b) => a + b.used, 0);
-    const totRec = processed.reduce((a, b) => a + b.recharged, 0);
-    const totBrn = processed.reduce((a, b) => a + b.burn, 0);
-
-    document.getElementById('totRemaining').textContent = formatMoney(totRem);
-    document.getElementById('totUsed').textContent = formatMoney(totUsd);
-    document.getElementById('totRecharged').textContent = formatMoney(totRec);
-    document.getElementById('totBurn').textContent = formatMoney(totBrn) + '/día';
 
     // 3. Hero Urgency Card (Focused on Balance Remaining)
     document.getElementById('heroBadge').className = `status-badge ${hero.statusClass}`;
