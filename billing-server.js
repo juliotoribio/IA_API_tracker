@@ -51,6 +51,10 @@ const PROVIDER_ENDPOINTS = {
   together: {
     url: 'https://api.together.ai/v1/billing',
     headers: (key) => ({ 'Authorization': `Bearer ${key}`, 'Content-Type': 'application/json' })
+  },
+  google: {
+    url: 'manual',
+    headers: () => ({})
   }
 };
 
@@ -161,6 +165,9 @@ app.get('/api/billing/:type', async (req, res) => {
       const used = Math.max(0, topped_up - remaining);
       
       billing = { remaining, used, topped_up, currency };
+    } else if (type === 'openai' || type === 'google') {
+      console.log(`[${type}] Using manual tracking...`);
+      billing = provider.billing || { remaining: 0, used: 0, topped_up: 0, currency: 'USD' };
     } else {
       let finalUrl = config.url;
       const response = await axios.get(finalUrl, {
@@ -192,12 +199,7 @@ app.get('/api/billing/:type', async (req, res) => {
         const used = typeof d.total_usage !== 'undefined' ? d.total_usage : 0;
         const remaining = Math.max(0, topped_up - used);
         billing = { remaining, used, topped_up, currency: 'USD' };
-      } else if (type === 'openai') {
-        const used = (response.data.data?.total_usage || 0) / 100;
-        const topped_up = provider.manualRecharged > 0 ? provider.manualRecharged : used;
-        const remaining = Math.max(0, topped_up - used);
-        billing = { remaining, used, topped_up, currency: 'USD' };
-    } else if (type === 'kimi') {
+      } else if (type === 'kimi') {
       const data = response.data.data || {};
       let remaining = 0;
       
@@ -268,6 +270,9 @@ app.get('/api/billing', async (req, res) => {
           const topped_up = provider.manualRecharged > 0 ? provider.manualRecharged : remaining;
           const used = Math.max(0, topped_up - remaining);
           billing = { remaining, used, topped_up, currency };
+        } else if (provider.type === 'openai' || provider.type === 'google') {
+          console.log(`[${provider.type}] Using manual tracking...`);
+          billing = provider.billing || { remaining: 0, used: 0, topped_up: 0, currency: 'USD' };
         } else {
           let finalUrl = config.url;
           const response = await axios.get(finalUrl, {
@@ -295,11 +300,6 @@ app.get('/api/billing', async (req, res) => {
             const d = response.data.data || {};
             const topped_up = typeof d.total_credits !== 'undefined' ? d.total_credits : (d.credits || 0);
             const used = typeof d.total_usage !== 'undefined' ? d.total_usage : 0;
-            const remaining = Math.max(0, topped_up - used);
-            billing = { remaining, used, topped_up, currency: 'USD' };
-          } else if (provider.type === 'openai') {
-            const used = (response.data.data?.total_usage || 0) / 100;
-            const topped_up = provider.manualRecharged > 0 ? provider.manualRecharged : used;
             const remaining = Math.max(0, topped_up - used);
             billing = { remaining, used, topped_up, currency: 'USD' };
           } else if (provider.type === 'kimi') {
