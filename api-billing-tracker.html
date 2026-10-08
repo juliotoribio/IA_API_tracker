@@ -1209,9 +1209,6 @@
           </div>
         </div>
         <div class="hero-provider-info">
-          <div class="hero-icon-badge" id="heroIconWrap">
-            <img id="heroIcon" src="" alt="Logo" />
-          </div>
           <div class="hero-provider-name" id="heroCardName">—</div>
         </div>
         <div class="hero-stats-row">
@@ -1716,10 +1713,7 @@
           </div>
         </div>
         <div class="mini-ring-meta">
-          <div style="display:flex; align-items:center; gap:6px;">
-            <span class="mini-icon-badge"><img src="${p.iconUrl}" alt="${p.name}"></span>
-            <span class="mini-ring-name">${p.name}</span>
-          </div>
+          <div class="mini-ring-name">${p.name}</div>
           <span class="mini-ring-balance">${p.remainingLabel} <span style="font-size:11px; color:${p.todaySpend > 0 ? '#f59e0b' : 'var(--text-dim)'}; font-weight:500;">(${p.todaySpend > 0 ? 'hoy +' + formatMoney(p.todaySpend) : '/ ' + p.rechargedLabel})</span></span>
           <span class="mini-ring-burn" style="font-size:10px; color:var(--text-dim);">est. ~${p.daysShort}</span>
         </div>
