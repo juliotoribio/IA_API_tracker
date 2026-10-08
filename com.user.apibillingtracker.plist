@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.user.apibillingtracker</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/opt/homebrew/opt/node@24/bin/node</string>
+        <string>/Users/user/Documents/DEV/projects/API-Billing-Tracker/billing-server.js</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/user/Documents/DEV/projects/API-Billing-Tracker</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+        <key>NODE_ENV</key>
+        <string>production</string>
+    </dict>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>KeepAlive</key>
+    <true/>
+
+    <key>StandardOutPath</key>
+    <string>/Users/user/Documents/DEV/projects/API-Billing-Tracker/server.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/user/Documents/DEV/projects/API-Billing-Tracker/server.err.log</string>
+</dict>
+</plist>

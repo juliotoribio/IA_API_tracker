@@ -7,3 +7,5 @@ tracker.db*
 *.zip
 support.js
 usage_data_*/
+server.log*
+server.err.log*
