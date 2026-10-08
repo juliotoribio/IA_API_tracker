@@ -350,10 +350,46 @@
       gap: 10px;
     }
 
-    .provider-dot {
-      width: 12px;
-      height: 12px;
-      border-radius: 4px;
+    .hero-icon-badge {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      background: #ffffff !important;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 4px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+      flex: none;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+    }
+
+    .hero-icon-badge img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: block;
+    }
+
+    .mini-icon-badge {
+      width: 18px;
+      height: 18px;
+      border-radius: 5px;
+      background: #ffffff !important;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2.5px;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+      flex: none;
+      vertical-align: middle;
+    }
+
+    .mini-icon-badge img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: block;
     }
 
     .hero-provider-name {
@@ -570,16 +606,25 @@
     }
 
     .provider-avatar {
-      width: 34px;
-      height: 34px;
-      border-radius: 10px;
+      width: 36px;
+      height: 36px;
+      border-radius: 9px;
+      background: #ffffff !important;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-weight: 700;
-      font-size: 14px;
-      color: #fff;
+      padding: 5px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+      border: 1px solid rgba(255, 255, 255, 0.25);
       flex: none;
+      overflow: hidden;
+    }
+
+    .provider-avatar img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: block;
     }
 
     .provider-title-wrap {
@@ -1161,7 +1206,9 @@
           </div>
         </div>
         <div class="hero-provider-info">
-          <div class="provider-dot" id="heroDot"></div>
+          <div class="hero-icon-badge" id="heroIconWrap">
+            <img id="heroIcon" src="" alt="Logo" />
+          </div>
           <div class="hero-provider-name" id="heroCardName">—</div>
         </div>
         <div class="hero-stats-row">
@@ -1434,6 +1481,19 @@
     ]
   };
 
+  const PROVIDER_ICONS = {
+    openai: 'https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/openai.svg',
+    deepseek: 'https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/deepseek.svg',
+    openrouter: 'https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/open-router.svg',
+    google: 'https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/google-gemini.svg',
+    anthropic: 'https://cdn.jsdelivr.net/npm/@lobehub/icons-static-svg@latest/icons/anthropic.svg'
+  };
+
+  function getProviderIcon(type) {
+    const key = (type || '').toLowerCase();
+    return PROVIDER_ICONS[key] || PROVIDER_ICONS.openai;
+  }
+
   function addDays(date, n) {
     const d = new Date(date);
     d.setDate(d.getDate() + Math.round(n));
@@ -1462,6 +1522,7 @@
     const used = parseFloat(p.billing?.used ?? 0);
     const remaining = parseFloat(p.billing?.remaining ?? (recharged - used));
     const todaySpend = parseFloat(p.todaySpend || 0);
+    const iconUrl = getProviderIcon(p.type);
     const noData = p.type === 'anthropic' && !p.billing?.remaining && !p.manualRecharged;
 
     // Generate consistent 42-day daily usage history
@@ -1562,6 +1623,7 @@
       used,
       remaining,
       todaySpend,
+      iconUrl,
       percentRemaining,
       noData,
       daily: normalizedDaily,
@@ -1629,7 +1691,11 @@
     document.getElementById('heroRingDays').textContent = hero.remainingLabel;
     document.getElementById('heroRingUnit').textContent = `${hero.percentRemaining}% de ${hero.rechargedLabel}`;
     document.getElementById('heroRingEst').textContent = hero.noData ? 'sin datos' : `est. ~${hero.daysShort}`;
-    document.getElementById('heroDot').style.background = hero.color || '#3b82f6';
+    const heroIcon = document.getElementById('heroIcon');
+    if (heroIcon) {
+      heroIcon.src = hero.iconUrl;
+      heroIcon.alt = hero.name;
+    }
     document.getElementById('heroCardName').textContent = hero.name;
     document.getElementById('heroStatBalance').textContent = hero.remainingLabel;
     document.getElementById('heroStatToday').textContent = hero.todaySpend > 0 ? `+${formatMoney(hero.todaySpend)}` : '$0.00';
@@ -1647,8 +1713,8 @@
           </div>
         </div>
         <div class="mini-ring-meta">
-          <div style="display:flex; align-items:center; gap:5px;">
-            <span style="width:6px; height:6px; border-radius:2px; background:${p.color};"></span>
+          <div style="display:flex; align-items:center; gap:6px;">
+            <span class="mini-icon-badge"><img src="${p.iconUrl}" alt="${p.name}"></span>
             <span class="mini-ring-name">${p.name}</span>
           </div>
           <span class="mini-ring-balance">${p.remainingLabel} <span style="font-size:11px; color:${p.todaySpend > 0 ? '#f59e0b' : 'var(--text-dim)'}; font-weight:500;">(${p.todaySpend > 0 ? 'hoy +' + formatMoney(p.todaySpend) : '/ ' + p.rechargedLabel})</span></span>
@@ -1685,7 +1751,9 @@
       <tr class="table-row" onclick="openModalForProvider('${p.id}')">
         <td>
           <div class="provider-cell">
-            <div class="provider-avatar" style="background:${p.color};">${p.name[0]}</div>
+            <div class="provider-avatar">
+              <img src="${p.iconUrl}" alt="${p.name}">
+            </div>
             <div class="provider-title-wrap">
               <span class="provider-cell-name">${p.name}</span>
               <span class="provider-cell-sub">${p.manualRecharged ? 'Control Manual' : 'Sincronizado vía API'}</span>
@@ -1829,7 +1897,10 @@
 
       return `
         <div class="heatmap-row ${isSelected ? 'active' : ''}" onclick="selectProvider('${p.id}')">
-          <span class="heatmap-name" style="color:${p.color}">${p.name}</span>
+          <span class="heatmap-name" style="display:inline-flex; align-items:center; gap:8px; color:${p.color}">
+            <span class="mini-icon-badge"><img src="${p.iconUrl}" alt="${p.name}"></span>
+            ${p.name}
+          </span>
           <div class="heatmap-cells-grid">${cells}</div>
           <span class="heatmap-total">${formatMoney(p.used)} <span style="font-size:11px; color:${p.todaySpend > 0 ? '#f59e0b' : 'var(--text-dim)'}; font-weight:500;">(${p.todaySpend > 0 ? 'hoy +' + formatMoney(p.todaySpend) : '$0.00 hoy'})</span></span>
         </div>
@@ -1839,7 +1910,7 @@
     // Active Model Card
     const current = processed.find(p => p.id === selectedProviderId) || processed[0];
     if (current) {
-      document.getElementById('modelProviderName').textContent = `Modelos: ${current.name}`;
+      document.getElementById('modelProviderName').innerHTML = `<span class="mini-icon-badge" style="margin-right:6px;"><img src="${current.iconUrl}" alt="${current.name}"></span> Modelos: ${current.name}`;
       document.getElementById('modelProviderBurn').textContent = `${current.daysShort} de saldo restante`;
 
       const modelList = document.getElementById('modelListContainer');
