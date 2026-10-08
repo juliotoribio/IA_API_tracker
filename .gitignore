@@ -6,3 +6,4 @@ tracker.db*
 .DS_Store
 *.zip
 support.js
+usage_data_*/

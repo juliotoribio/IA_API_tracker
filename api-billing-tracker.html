@@ -1425,8 +1425,8 @@
       ['gemini-2.5-pro', 0.35]
     ],
     deepseek: [
-      ['deepseek-chat', 0.85],
-      ['deepseek-coder', 0.15]
+      ['deepseek-flash', 0.965],
+      ['deepseek-v4-pro', 0.035]
     ],
     anthropic: [
       ['claude-3-5-sonnet-20241022', 0.80],
@@ -1477,11 +1477,24 @@
       daily.push(val);
     }
 
-    const sumDaily = daily.reduce((a, b) => a + b, 0) || 1;
-    // Scale daily distribution to approximate recent actual usage or sensible burn
-    const targetUsage = Math.max(used - todaySpend, 0.001);
-    const normalizedDaily = daily.map(v => (v / sumDaily) * targetUsage);
-    if (normalizedDaily.length > 0) {
+    let normalizedDaily = [];
+    if (p.dailyHistory && p.dailyHistory.length > 0) {
+      const histMap = Object.fromEntries(p.dailyHistory.map(h => [h.date, h.amount]));
+      for (let i = -H + 1; i <= 0; i++) {
+        const d = addDays(TODAY, i);
+        // Format YYYY-MM-DD
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        const dStr = `${year}-${month}-${day}`;
+        normalizedDaily.push(histMap[dStr] || 0);
+      }
+    } else {
+      const sumDaily = daily.reduce((a, b) => a + b, 0) || 1;
+      const targetUsage = Math.max(used - todaySpend, 0.001);
+      normalizedDaily = daily.map(v => (v / sumDaily) * targetUsage);
+    }
+    if (normalizedDaily.length > 0 && todaySpend > 0) {
       normalizedDaily[normalizedDaily.length - 1] = todaySpend;
     }
 

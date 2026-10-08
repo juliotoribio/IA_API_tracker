@@ -204,7 +204,7 @@ function getAllProviders() {
     ) s ON p.id = s.provider_id AND s.rn = 1
     ORDER BY p.name ASC
   `).all();
-  const todayRows = db.prepare("SELECT provider_id, spend_amount FROM daily_usage WHERE date = date('now')").all();
+  const todayRows = db.prepare("SELECT provider_id, spend_amount FROM daily_usage WHERE date = date('now', 'localtime') OR date = date('now')").all();
   const todayMap = Object.fromEntries(todayRows.map(r => [r.provider_id, r.spend_amount]));
 
   const historyRows = db.prepare("SELECT provider_id, date, spend_amount FROM daily_usage ORDER BY date ASC").all();

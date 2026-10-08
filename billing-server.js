@@ -177,7 +177,7 @@ app.get('/api/billing/:type', async (req, res) => {
         }
         
         const prevToppedUp = provider.billing?.topped_up || 0;
-        const topped_up = provider.manualRecharged > 0 ? provider.manualRecharged : Math.max(prevToppedUp, 1.24, remaining);
+        const topped_up = provider.manualRecharged > 0 ? provider.manualRecharged : Math.max(prevToppedUp, 8.43, remaining);
         const used = Math.max(0, topped_up - remaining);
         billing = { remaining, used, topped_up, currency };
       } else if (type === 'openrouter') {
@@ -285,7 +285,7 @@ app.get('/api/billing', async (req, res) => {
             }
             
             const prevToppedUp = provider.billing?.topped_up || 0;
-            const topped_up = provider.manualRecharged > 0 ? provider.manualRecharged : Math.max(prevToppedUp, 1.24, remaining);
+            const topped_up = provider.manualRecharged > 0 ? provider.manualRecharged : Math.max(prevToppedUp, 8.43, remaining);
             const used = Math.max(0, topped_up - remaining);
             billing = { remaining, used, topped_up, currency };
           } else if (provider.type === 'openrouter') {
