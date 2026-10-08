@@ -240,7 +240,7 @@ app.get('/api/fetch-all', (req, res) => {
   res.redirect('/api/billing');
 });
 
-app.get('/api/billing', async (req, res) => {
+async function syncAllProviders() {
   const providers = db.getAllProviders();
   const results = [];
   
@@ -253,71 +253,71 @@ app.get('/api/billing', async (req, res) => {
     try {
       let billing = {};
       if (provider.type === 'minimax') {
-          console.log(`[minimax] Triggering visual scraper...`);
-          await minimaxScraper.takeScreenshot();
-          const extracted = await minimaxScraper.extractBalanceWithVision();
-          const remaining = extracted.remaining || 0;
-          const currency = extracted.currency || 'USD';
-          const topped_up = provider.manualRecharged > 0 ? provider.manualRecharged : remaining;
+        console.log(`[minimax] Triggering visual scraper...`);
+        await minimaxScraper.takeScreenshot();
+        const extracted = await minimaxScraper.extractBalanceWithVision();
+        const remaining = extracted.remaining || 0;
+        const currency = extracted.currency || 'USD';
+        const topped_up = provider.manualRecharged > 0 ? provider.manualRecharged : remaining;
+        const used = Math.max(0, topped_up - remaining);
+        billing = { remaining, used, topped_up, currency };
+      } else if (provider.type === 'openai' || provider.type === 'google') {
+        console.log(`[${provider.type}] Using manual tracking...`);
+        billing = provider.billing || { remaining: 0, used: 0, topped_up: 0, currency: 'USD' };
+      } else {
+        let finalUrl = config.url;
+        const response = await axios.get(finalUrl, {
+          headers: config.headers(provider.apiKey)
+        });
+        
+        if (provider.type === 'deepseek') {
+          const usd = response.data.balance_infos?.find(b => b.currency === 'USD');
+          const cny = response.data.balance_infos?.find(b => b.currency === 'CNY');
+          
+          let remaining = 0;
+          let currency = 'USD';
+          
+          if (cny && parseFloat(cny.total_balance) > 0) {
+            remaining = parseFloat(cny.total_balance) || 0;
+            currency = 'CNY';
+          } else if (usd) {
+            remaining = parseFloat(usd.total_balance) || 0;
+          }
+          
+          const prevToppedUp = provider.billing?.topped_up || 0;
+          const topped_up = provider.manualRecharged > 0 ? provider.manualRecharged : Math.max(prevToppedUp, 8.43, remaining);
           const used = Math.max(0, topped_up - remaining);
           billing = { remaining, used, topped_up, currency };
-        } else if (provider.type === 'openai' || provider.type === 'google') {
-          console.log(`[${provider.type}] Using manual tracking...`);
-          billing = provider.billing || { remaining: 0, used: 0, topped_up: 0, currency: 'USD' };
-        } else {
-          let finalUrl = config.url;
-          const response = await axios.get(finalUrl, {
-            headers: config.headers(provider.apiKey)
-          });
+        } else if (provider.type === 'openrouter') {
+          const d = response.data.data || {};
+          const topped_up = typeof d.total_credits !== 'undefined' ? d.total_credits : (d.credits || 0);
+          const used = typeof d.total_usage !== 'undefined' ? d.total_usage : 0;
+          const remaining = Math.max(0, topped_up - used);
+          billing = { remaining, used, topped_up, currency: 'USD' };
+        } else if (provider.type === 'kimi') {
+          const data = response.data.data || {};
+          let remaining = 0;
           
-          if (provider.type === 'deepseek') {
-            const usd = response.data.balance_infos?.find(b => b.currency === 'USD');
-            const cny = response.data.balance_infos?.find(b => b.currency === 'CNY');
-            
-            let remaining = 0;
-            let currency = 'USD';
-            
-            if (cny && parseFloat(cny.total_balance) > 0) {
-              remaining = parseFloat(cny.total_balance) || 0;
-              currency = 'CNY';
-            } else if (usd) {
-              remaining = parseFloat(usd.total_balance) || 0;
-            }
-            
-            const prevToppedUp = provider.billing?.topped_up || 0;
-            const topped_up = provider.manualRecharged > 0 ? provider.manualRecharged : Math.max(prevToppedUp, 8.43, remaining);
-            const used = Math.max(0, topped_up - remaining);
-            billing = { remaining, used, topped_up, currency };
-          } else if (provider.type === 'openrouter') {
-            const d = response.data.data || {};
-            const topped_up = typeof d.total_credits !== 'undefined' ? d.total_credits : (d.credits || 0);
-            const used = typeof d.total_usage !== 'undefined' ? d.total_usage : 0;
-            const remaining = Math.max(0, topped_up - used);
-            billing = { remaining, used, topped_up, currency: 'USD' };
-          } else if (provider.type === 'kimi') {
-            const data = response.data.data || {};
-            let remaining = 0;
-            
-            if (data.available_balance !== undefined) {
-               remaining = parseFloat(data.available_balance);
-            } else {
-               const usd = data.available?.find(b => b.currency === 'USD');
-               const cny = data.available?.find(b => b.currency === 'CNY');
-               if (usd && parseFloat(usd.available) > 0) {
-                 remaining = parseFloat(usd.available);
-               } else {
-                 remaining = parseFloat(cny?.available || 0);
-               }
-            }
-            const topped_up = provider.manualRecharged > 0 ? provider.manualRecharged : remaining;
-            const used = Math.max(0, topped_up - remaining);
-            billing = { remaining, used, topped_up, currency: 'USD' }; // Force USD
-          } else if (provider.type === 'grok') {
-            billing = { remaining: response.data.data?.credits || 0, currency: 'USD' };
-          } else if (provider.type === 'together') {
-            billing = { remaining: response.data.data?.available_credits || 0, currency: 'USD' };
+          if (data.available_balance !== undefined) {
+             remaining = parseFloat(data.available_balance);
+          } else {
+             const usd = data.available?.find(b => b.currency === 'USD');
+             const cny = data.available?.find(b => b.currency === 'CNY');
+             if (usd && parseFloat(usd.available) > 0) {
+               remaining = parseFloat(usd.available);
+             } else {
+               remaining = parseFloat(cny?.available || 0);
+             }
           }
+          const topped_up = provider.manualRecharged > 0 ? provider.manualRecharged : remaining;
+          const used = Math.max(0, topped_up - remaining);
+          billing = { remaining, used, topped_up, currency: 'USD' };
+        } else if (provider.type === 'grok') {
+          billing = { remaining: response.data.data?.credits || 0, currency: 'USD' };
+        } else if (provider.type === 'together') {
+          billing = { remaining: response.data.data?.available_credits || 0, currency: 'USD' };
         }
+      }
       
       provider.billing = billing;
       provider.lastFetch = new Date().toISOString();
@@ -340,7 +340,11 @@ app.get('/api/billing', async (req, res) => {
       results.push({ type: provider.type, error: message });
     }
   }
-  
+  return results;
+}
+
+app.get('/api/billing', async (req, res) => {
+  const results = await syncAllProviders();
   res.json(results);
 });
 
@@ -361,4 +365,15 @@ app.get('/', (req, res) => {
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running at http://localhost:${PORT}`);
   console.log(`Open http://127.0.0.1:${PORT} in your browser`);
+  
+  // Schedule automatic periodic background snapshot every 30 minutes
+  setInterval(async () => {
+    console.log('[cron] Taking periodic snapshot of provider balances...');
+    try {
+      await syncAllProviders();
+      console.log('[cron] Periodic snapshot completed.');
+    } catch (err) {
+      console.error('[cron] Error in periodic sync:', err.message);
+    }
+  }, 30 * 60 * 1000);
 });

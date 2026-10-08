@@ -290,7 +290,10 @@ function deleteProvider(type) {
 
 function recordSnapshot(providerId, { remaining, used, topped_up, currency = 'USD' }) {
   const now = new Date();
-  const dateStr = now.toISOString().split('T')[0];
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  const dateStr = `${year}-${month}-${day}`;
 
   db.prepare(`
     INSERT INTO billing_snapshots (provider_id, timestamp, date, remaining, used, topped_up, currency)
